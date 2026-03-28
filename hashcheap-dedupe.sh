@@ -5,7 +5,12 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-usage(){ echo "Usage: $0 <hashcheap_file> <target_dir> [--force] [--dry-run]"; exit 1; }
+usage(){
+  echo "Usage: $0 <hashcheap_file> <target_dir> [--delete]" >&2
+  echo "           [--strip-source-prefix <prefix>] [--strip-target-prefix <prefix>]" >&2
+  echo "(defaults to dry run; pass --delete to actually remove files)" >&2
+  exit 1
+}
 [ $# -ge 2 ] || usage
 
 HASHFILE="$1"
@@ -13,10 +18,14 @@ TARGET_DIR="$2"
 shift 2 || true
 
 DRY_RUN=1
+STRIP_SOURCE_PREFIX=""
+STRIP_TARGET_PREFIX=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --force) DRY_RUN=0 ;;
+    --delete) DRY_RUN=0 ;;
     --dry-run) DRY_RUN=1 ;;
+    --strip-source-prefix) STRIP_SOURCE_PREFIX="$2"; shift ;;
+    --strip-target-prefix) STRIP_TARGET_PREFIX="$2"; shift ;;
     -h|--help) usage ;;
     *) echo "Unknown option: $1" >&2; usage ;;
   esac
@@ -27,6 +36,10 @@ done
 [ -d "$TARGET_DIR" ] || { echo "target dir not found: $TARGET_DIR" >&2; exit 1; }
 
 [ $DRY_RUN -eq 1 ] && echo "[DRY-RUN] no deletions will be made."
+
+effective_target="$TARGET_DIR"
+[ -n "$STRIP_TARGET_PREFIX" ] && effective_target="${effective_target#$STRIP_TARGET_PREFIX}"
+effective_target="${effective_target#/}"
 
 deleted_files=0
 deleted_bytes=0
@@ -43,7 +56,10 @@ while IFS= read -r line; do
   [[ "$sha" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "[SKIP] bad sha256: $line" >&2; continue; }
   [ -n "${relpath:-}" ] || { echo "[SKIP] missing path: $line" >&2; continue; }
 
-  tgt="$TARGET_DIR/$relpath"
+  [ -n "$STRIP_SOURCE_PREFIX" ] && relpath="${relpath#$STRIP_SOURCE_PREFIX}"
+  relpath="${relpath#/}"
+
+  tgt="$effective_target/$relpath"
 
   if [ ! -f "$tgt" ]; then
     echo "[MISSING] $tgt" >&2
@@ -77,4 +93,3 @@ done < "$HASHFILE"
   echo "Deleted files: $deleted_files"
   echo "Deleted bytes: $deleted_bytes"
 }
-
