@@ -1,17 +1,20 @@
-import csv
-
 def read_csv_data(filename):
     """Read CSV data and return a dictionary of hashes to file paths."""
     data = {}
-    with open(filename, mode='r', newline='', encoding='utf-8') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            # Use a tuple of (MD5, SHA-256) as a key for identifying identical files
-            hash_key = (row['md5'], row['sha256'])
+    with open(filename, mode='r', encoding='utf-8') as file:
+        for line in file:
+            line = line.rstrip('\n')
+            if not line or line.startswith('%%') or line.startswith('##'):
+                continue
+            parts = line.split(',', 3)
+            if len(parts) < 4:
+                continue
+            _, md5, sha256, filepath = parts
+            hash_key = (md5, sha256)
             if hash_key in data:
-                data[hash_key].append(row['filepath'])
+                data[hash_key].append(filepath)
             else:
-                data[hash_key] = [row['filepath']]
+                data[hash_key] = [filepath]
     return data
 
 def find_identical_files(data1, data2):

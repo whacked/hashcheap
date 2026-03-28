@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Number of cores
-num_cores=$(nproc)
+num_cores=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
 
 # print hashdeep header
 echo '%%%% HASHCHEAP-0.0'

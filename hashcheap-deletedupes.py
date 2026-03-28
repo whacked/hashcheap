@@ -1,16 +1,18 @@
-import csv
 import argparse
 import os
 
 def read_files_data(filepath, strip_path):
     """Read file data from the given CSV file and strip the base path."""
     files_data = {}
-    with open(filepath, newline='') as csvfile:
-        reader = csv.reader(csvfile)
-        next(reader, None)  # Skip header
-        for row in reader:
-            path, size, md5, sha256 = row
-            # Normalize the path by removing the base directory part
+    with open(filepath, encoding='utf-8') as f:
+        for line in f:
+            line = line.rstrip('\n')
+            if not line or line.startswith('%%') or line.startswith('##'):
+                continue
+            parts = line.split(',', 3)
+            if len(parts) < 4:
+                continue
+            size, md5, sha256, path = parts
             normalized_path = os.path.relpath(path, strip_path)
             files_data[(normalized_path, size, md5, sha256)] = path
     return files_data
